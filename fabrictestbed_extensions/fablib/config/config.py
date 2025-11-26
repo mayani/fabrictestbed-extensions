@@ -28,6 +28,7 @@ import os
 import re
 import time
 from functools import lru_cache
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -256,6 +257,8 @@ class Config:
                 f"Token file does not exist, please provide the token at location: {token_location}!"
             )
 
+        self.log = logging.getLogger("fablib")
+
     def __load_configuration(self, file_path, **kwargs):
         """
         Load the config parameters from config file;
@@ -365,7 +368,7 @@ class Config:
                     errors.append(f"{attr} is not set")
 
         if errors:
-            logging.error(f"Failing Config: {self.runtime_config}")
+            self.log.error(f"Failing Config: {self.runtime_config}")
             # TODO: define custom exception class to report errors,
             # and emit a more helpful error message with hints about
             # setting up environment variables or configuration file.
@@ -843,17 +846,30 @@ class Config:
             ):
                 os.makedirs(os.path.dirname(self.get_log_file()))
         except Exception:
-            logging.warning(
+            self.log.warning(
                 f"Failed to create log_file directory: {os.path.dirname(self.get_log_file())}"
             )
 
-        if self.get_log_file() and self.get_log_level():
-            logging.basicConfig(
-                filename=self.get_log_file(),
-                level=self.LOG_LEVELS[self.get_log_level()],
-                format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
-                datefmt="%H:%M:%S",
+        default_log_format = (
+            "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s"
+        )
+        default_date_format = "%H:%M:%S"
+
+        if self.get_log_level():
+            self.log.setLevel(self.LOG_LEVELS[self.get_log_level()])
+
+        if self.get_log_file():
+            file_handler = RotatingFileHandler(
+                self.get_log_file(), backupCount=int(5), maxBytes=int(1024 * 1024 * 5)
             )
+            file_handler.setFormatter(
+                logging.Formatter(default_log_format, datefmt=default_date_format)
+            )
+            self.log.addHandler(file_handler)
+
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.CRITICAL)
+        self.log.addHandler(console_handler)
 
     @staticmethod
     def get_metadata_tag() -> str:
