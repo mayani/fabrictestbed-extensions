@@ -838,13 +838,6 @@ class Config:
         Create log file if it doesn't exist; setup logger
         """
         try:
-            for handler in logging.root.handlers[:]:
-                logging.root.removeHandler(handler)
-        except Exception as e:
-            print(f"Exception from removeHandler: {e}")
-            pass
-
-        try:
             if self.get_log_file() and not os.path.isdir(
                 os.path.dirname(self.get_log_file())
             ):
